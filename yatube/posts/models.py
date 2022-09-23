@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -61,9 +61,8 @@ class Post(models.Model):
         verbose_name_plural = 'Посты'
 
     def __str__(self):
-        self.text = self.text[:15]
         return (
-            f'{self.text} '
+            f'{self.text[:15]} '
             f'{self.author.username} '
             f'{self.pub_date} '
             f'{self.group} '
@@ -98,12 +97,11 @@ class Comment(models.Model):
         verbose_name_plural = 'Комментарии'
 
     def __str__(self):
-        self.text = self.text[:15]
         return (
             f'{self.post} '
             f'{self.author.username} '
             f'{self.created} '
-            f'{self.text} '
+            f'{self.text[:15]} '
         )
 
 
@@ -120,6 +118,20 @@ class Follow(models.Model):
         related_name='following',
         verbose_name='Автор',
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_unique_relationships",
+                fields=['user', 'author'],
+            ),
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_prevent_self_follow",
+                check=~models.Q(user=models.F('author')),
+            ),
+        ]
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
 
     def __str__(self):
         return (
