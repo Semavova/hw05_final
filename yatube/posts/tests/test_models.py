@@ -39,7 +39,7 @@ class PostModelTest(TestCase):
         }
         field_group_verboses = {
             'title': 'Заголовок',
-            'slug': 'Идентификатор группы',
+            'slug': 'Идентификатор',
             'description': 'Описание',
         }
         for field, expected_value in field_post_verboses.items():

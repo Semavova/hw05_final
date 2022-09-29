@@ -11,7 +11,7 @@ class Group(models.Model):
     )
     slug = models.SlugField(
         unique=True,
-        verbose_name='Идентификатор группы'
+        verbose_name='Идентификатор'
     )
     description = models.TextField(
         verbose_name='Описание'
@@ -50,7 +50,7 @@ class Post(models.Model):
         verbose_name='Группа'
     )
     image = models.ImageField(
-        'Картинка',
+        verbose_name='Картинка',
         upload_to='posts/',
         blank=True
     )
@@ -98,10 +98,10 @@ class Comment(models.Model):
 
     def __str__(self):
         return (
-            f'{self.post} '
-            f'{self.author.username} '
-            f'{self.created} '
-            f'{self.text[:15]} '
+            f'Пост: {self.post} '
+            f'Автор комментария: {self.author.username} '
+            f'Оставлен: {self.created} '
+            f'Комментарий: {self.text[:15]} '
         )
 
 

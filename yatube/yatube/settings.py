@@ -20,7 +20,7 @@ ALLOWED_HOSTS = [
     'testserver',
 ]
 
-POSTS_PER_PAGES = 10
+POSTS_PER_PAGE = 10
 
 # Application definition
 

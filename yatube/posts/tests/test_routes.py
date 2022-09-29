@@ -4,13 +4,13 @@ from django.urls import reverse
 USERNAME = 'StasBasov'
 GROUP_SLUG = 'test-slug'
 POST_ID = 1
-ROUTE_ADDRESS_LIST = (
-    ('/', reverse('posts:index')),
-    ('/create/', reverse('posts:post_create')),
-    (f'/posts/{POST_ID}/', reverse('posts:post_detail', args=(POST_ID,))),
-    (f'/profile/{USERNAME}/', reverse('posts:profile', args=(USERNAME,))),
-    (f'/posts/{POST_ID}/edit/', reverse('posts:post_edit', args=(POST_ID,))),
-    (f'/group/{GROUP_SLUG}/', reverse('posts:group_posts', args=(GROUP_SLUG,)))
+URL_ADDRESS_LIST = (
+    ('/', 'index', None),
+    ('/create/', 'post_create', None),
+    (f'/posts/{POST_ID}/', 'post_detail', (POST_ID,)),
+    (f'/profile/{USERNAME}/', 'profile', (USERNAME,)),
+    (f'/posts/{POST_ID}/edit/', 'post_edit', (POST_ID,)),
+    (f'/group/{GROUP_SLUG}/', 'group_posts', (GROUP_SLUG,))
 )
 
 
@@ -18,6 +18,6 @@ class PostPagesTests(TestCase):
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
-        for route, address in ROUTE_ADDRESS_LIST:
-            with self.subTest(address=address):
-                self.assertEqual(address, route)
+        for url, address, args in URL_ADDRESS_LIST:
+            with self.subTest(url=url):
+                self.assertEqual(reverse('posts:' + address, args=args), url)

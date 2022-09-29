@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.settings import SMALL_GIF
+from yatube.settings import POSTS_PER_PAGE
 
 from ..models import Follow, Group, Post, User
 
@@ -25,6 +25,14 @@ ANOTHER_GROUP_SLUG_URL = reverse(
 PROFILE_URL = reverse('posts:profile', args=(AUTHOR,))
 PROFILE_FOLLOW = reverse('posts:profile_follow', args=(AUTHOR,))
 PROFILE_UNFOLLOW = reverse('posts:profile_unfollow', args=(AUTHOR,))
+SMALL_GIF = (
+    b'\x47\x49\x46\x38\x39\x61\x02\x00'
+    b'\x01\x00\x80\x00\x00\x00\x00\x00'
+    b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+    b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+    b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+    b'\x0A\x00\x3B'
+)
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -82,31 +90,16 @@ class PostPagesTests(TestCase):
         for name, page in pages.items():
             with self.subTest(page=page):
                 response = self.user_client.get(page)
-                self.assertEqual(
-                    response.context.get('user').username, USER
-                )
                 if name != 'post_detail':
                     self.assertEqual(len(response.context['page_obj']), 1)
-                    first_post = response.context['page_obj'][0]
+                    post = response.context['page_obj'][0]
                 else:
-                    first_post = response.context.get('post')
-                post_text = first_post.text
-                post_image = first_post.image
-                post_id = first_post.id
-                post_author = first_post.author.get_full_name
-                post_pub_date = first_post.pub_date
-                post_group = first_post.group.title
-                post_group_slug = first_post.group.slug
-                post_group_description = first_post.group.description
-                self.assertEqual(post_text, self.post.text)
-                self.assertEqual(post_image, self.post.image)
-                self.assertEqual(post_id, self.post.id)
-                self.assertEqual(post_author, self.post.author.get_full_name)
-                self.assertEqual(post_pub_date, self.post.pub_date)
-                self.assertEqual(post_group, self.group.title)
-                self.assertEqual(post_group_slug, self.group.slug)
+                    post = response.context.get('post')
+                self.assertEqual(post.text, self.post.text)
+                self.assertEqual(post.image, self.post.image)
+                self.assertEqual(post.id, self.post.id)
                 self.assertEqual(
-                    post_group_description, self.group.description
+                    post.author.get_full_name, self.post.author.get_full_name
                 )
 
     def test_profile_page_show_correct_context(self):
@@ -119,24 +112,14 @@ class PostPagesTests(TestCase):
     def test_group_posts_page_show_correct_context(self):
         '''Шаблон страницы group_posts сформирован с правильным контекстом'''
         response = self.author_client.get(GROUP_POSTS_URL)
-        self.assertEqual(
-            response.context.get('group'), self.group
-        )
-        self.assertEqual(
-            response.context.get('group').id, self.group.id
-        )
-        self.assertEqual(
-            response.context.get('group').slug, self.group.slug
-        )
-        self.assertEqual(
-            response.context.get('group').title, self.group.title
-        )
-        self.assertEqual(
-            response.context.get('group').description, self.group.description
-        )
+        group = response.context.get('group')
+        self.assertEqual(group.id, self.group.id)
+        self.assertEqual(group.slug, self.group.slug)
+        self.assertEqual(group.title, self.group.title)
+        self.assertEqual(group.description, self.group.description)
 
-    def test_post_is_not_on_another_group_or_subscriptions_page(self):
-        """Пост не попал на чужую групп-ленту или ленту подписок."""
+    def test_post_is_not_on_foreign_page(self):
+        """Пост не попал на чужую страницу."""
         urls = (
             ANOTHER_GROUP_SLUG_URL,
             FOLLOW_URL,
@@ -160,30 +143,51 @@ class PostPagesTests(TestCase):
             response.content
         )
 
-    def test_post_is_not_on_other_subscriptions(self):
-        '''Пост не попал на чужую ленту подписок'''
-        response = self.author_client.get(FOLLOW_URL)
-        self.assertNotIn(self.post, response.context['page_obj'])
-
     def test_only_authorized_user_can_subscribe(self):
         '''Только авторизованный пользователь может подписаться'''
         Follow.objects.all().delete()
         self.user_client.get(
             PROFILE_FOLLOW,
-            {'username': self.author},
             follow=True,
         )
         self.assertTrue(
             Follow.objects.filter(user=self.user, author=self.author).exists()
         )
 
-    def test_only_authorized_user_can_subscribe(self):
+    def test_only_authorized_user_can_unsubscribe(self):
         '''Только авторизованный пользователь может удалять из подписок'''
         self.user_client.get(
             PROFILE_UNFOLLOW,
-            {'username': self.author},
             follow=True,
         )
         self.assertFalse(
             Follow.objects.filter(user=self.user, author=self.author).exists()
         )
+
+    def test_paginator_is_working(self):
+        '''Работоспособность пагинатора'''
+        Post.objects.all().delete()
+        batch_size = POSTS_PER_PAGE + 1
+        Post.objects.bulk_create(
+            Post(
+                group=self.group,
+                author=self.author,
+                text='Тестовый пост %s' % i
+            ) for i in range(batch_size)
+        )
+        pages = (
+            (INDEX_URL + '?page=1', POSTS_PER_PAGE),
+            (FOLLOW_URL + '?page=1', POSTS_PER_PAGE),
+            (GROUP_POSTS_URL + '?page=1', POSTS_PER_PAGE),
+            (PROFILE_URL + '?page=1', POSTS_PER_PAGE),
+            (INDEX_URL + '?page=2', batch_size - POSTS_PER_PAGE),
+            (FOLLOW_URL + '?page=2', batch_size - POSTS_PER_PAGE),
+            (GROUP_POSTS_URL + '?page=2', batch_size - POSTS_PER_PAGE),
+            (PROFILE_URL + '?page=2', batch_size - POSTS_PER_PAGE),
+        )
+        for url, posts in pages:
+            with self.subTest(url=url):
+                response = self.user_client.get(url)
+                self.assertEqual(
+                    len(response.context['page_obj']), posts
+                )

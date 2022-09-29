@@ -7,8 +7,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.settings import SMALL_GIF
-
 from ..forms import CommentForm, PostForm
 from ..models import Comment, Group, Post, User
 
@@ -19,6 +17,15 @@ GROUP_SLUG = 'test-slug'
 PROFILE_URL = reverse('posts:profile', args=(USERNAME,))
 POST_CREATE_URL = reverse('posts:post_create')
 LOGIN_URL = reverse('users:login')
+MEDIA_PATH = Post._meta.get_field('image').upload_to
+SMALL_GIF = (
+    b'\x47\x49\x46\x38\x39\x61\x02\x00'
+    b'\x01\x00\x80\x00\x00\x00\x00\x00'
+    b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+    b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+    b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+    b'\x0A\x00\x3B'
+)
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -80,14 +87,12 @@ class PostCreateFormTests(TestCase):
         )
         self.assertRedirects(response, PROFILE_URL)
         self.assertEqual(Post.objects.count(), 1)
-        new_post = Post.objects.first()
-        self.assertEqual(form_data.get('text'), new_post.text)
+        post = Post.objects.first()
+        self.assertEqual(form_data['text'], post.text)
+        self.assertEqual(form_data['group'], post.group.id)
+        self.assertEqual(self.user, post.author)
         self.assertEqual(
-            form_data.get('group'), new_post.group.id
-        )
-        self.assertEqual(self.user, new_post.author)
-        self.assertEqual(
-            'posts/' + form_data.get('image').name, new_post.image.name
+            MEDIA_PATH + form_data['image'].name, post.image.name
         )
 
     def test_edit_post(self):
@@ -109,15 +114,13 @@ class PostCreateFormTests(TestCase):
         )
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertEqual(Post.objects.count(), 1)
-        edited_post = Post.objects.first()
-        self.assertEqual(form_data.get('text'), edited_post.text)
+        post = Post.objects.first()
+        self.assertEqual(form_data['text'], post.text)
+        self.assertEqual(form_data['group'], post.group.id)
+        self.assertEqual(self.post.author, post.author)
+        self.assertEqual(self.post.id, post.id)
         self.assertEqual(
-            form_data.get('group'), edited_post.group.id
-        )
-        self.assertEqual(self.post.author, edited_post.author)
-        self.assertEqual(self.post.id, edited_post.id)
-        self.assertEqual(
-            'posts/' + form_data.get('image').name, edited_post.image.name
+            MEDIA_PATH + form_data['image'].name, post.image.name
         )
 
     def test_create_post_template_show_correct_context(self):
@@ -143,51 +146,53 @@ class PostCreateFormTests(TestCase):
                         )
                         self.assertIsInstance(form_field, expected)
 
-    def test_anonymous_can_not_create_or_edit_post(self):
+    def test_anonymous_can_not_create_post(self):
         """Аноним не может создать или отредактировать пост"""
-        posts_count = Post.objects.count()
-        posts = Post.objects
+        posts = Post.objects.all()
         form_data = {
             'text': 'Новый пост',
             'group': self.group.id,
             'image': self.uploaded.open(),
         }
-        urls = (
-            POST_CREATE_URL,
-            self.POST_EDIT_URL,
+        self.assertRedirects(
+            self.guest_client.post(
+                POST_CREATE_URL,
+                data=form_data,
+                follow=True
+            ),
+            LOGIN_URL + '?next=' + POST_CREATE_URL
         )
-        for url in urls:
-            with self.subTest(url=url):
-                response = self.guest_client.post(
-                    url,
-                    data=form_data,
-                    follow=True
-                )
-                self.assertRedirects(
-                    response, LOGIN_URL + '?next=' + url
-                )
-                self.assertEqual(Post.objects.count(), posts_count)
-                self.assertEqual(Post.objects, posts)
+        self.assertQuerysetEqual(
+            Post.objects.all(), posts, transform=lambda x: x
+        )
 
-    def test_not_author_can_not_edit_post(self):
-        '''Не автор не может отредактировать пост'''
-        posts_count = Post.objects.count()
-        posts = Post.objects
+    def test_anonymous_can_not_edit_post(self):
+        """Аноним не может создать или отредактировать пост"""
+        posts = Post.objects.all()
+        post = Post.objects.first()
         form_data = {
             'text': 'Новый пост',
             'group': self.group.id,
-            'image': self.uploaded,
+            'image': self.uploaded.open(),
         }
-        response = self.auth_client.post(
-            self.POST_EDIT_URL,
-            data=form_data,
-            follow=True
+        list = (
+            (self.guest_client, LOGIN_URL + '?next=' + self.POST_EDIT_URL),
+            (self.auth_client, self.POST_DETAIL_URL),
         )
-        self.assertRedirects(
-            response, self.POST_DETAIL_URL
-        )
-        self.assertEqual(Post.objects.count(), posts_count)
-        self.assertEqual(Post.objects, posts)
+        for client, url in list:
+            with self.subTest(client=client):
+                self.assertRedirects(
+                    client.post(
+                        self.POST_EDIT_URL, data=form_data, follow=True
+                    ), url
+                )
+                self.assertEqual(self.post.text, post.text)
+                self.assertEqual(self.post.group.id, post.group.id)
+                self.assertEqual(self.post.author, post.author)
+                self.assertEqual(self.post.id, post.id)
+                self.assertQuerysetEqual(
+                    Post.objects.all(), posts, transform=lambda x: x
+                )
 
     def test_leave_comment(self):
         """Валидная форма оставляет комментарий к посту."""
@@ -202,15 +207,14 @@ class PostCreateFormTests(TestCase):
         )
         self.assertRedirects(response, self.POST_DETAIL_URL)
         self.assertEqual(Comment.objects.count(), 1)
-        new_comment = Comment.objects.all().first()
-        self.assertEqual(form_data.get('text'), new_comment.text)
-        self.assertEqual(self.user, new_comment.author)
-        self.assertEqual(self.post, new_comment.post)
+        comment = Comment.objects.all().first()
+        self.assertEqual(form_data['text'], comment.text)
+        self.assertEqual(self.user, comment.author)
+        self.assertEqual(self.post, comment.post)
 
     def test_anonymous_can_not_leave_comment(self):
         """Аноним не может оставить комментарий"""
-        comments = Comment.objects
-        comment_count = Comment.objects.count()
+        comments = Comment.objects.all()
         form_data = {
             'text': 'Новый пост',
         }
@@ -222,8 +226,9 @@ class PostCreateFormTests(TestCase):
         self.assertRedirects(
             response, LOGIN_URL + '?next=' + self.COMMENT_URL
         )
-        self.assertEqual(Comment.objects.count(), comment_count)
-        self.assertEqual(Comment.objects, comments)
+        self.assertQuerysetEqual(
+            Comment.objects.all(), comments, transform=lambda x: x
+        )
 
     def test_leave_comment_template_show_correct_context(self):
         '''Шаблон add_comment сформирован с правильным контекстом.'''
