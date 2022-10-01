@@ -19,10 +19,10 @@ GROUP_POSTS_404 = reverse('posts:group_posts', args=(NOT_EXIST_SLUG,))
 PROFILE_URL_404 = reverse('posts:profile', args=(NOT_EXIST_SLUG,))
 FOLLOW_URL = reverse('posts:profile_follow', args=(AUTHOR,))
 UNFOLLOW_URL = reverse('posts:profile_unfollow', args=(AUTHOR,))
-POST_CREATE_REDIRECT = LOGIN_URL + '?next=' + POST_CREATE_URL
-FOLLOW_INDEX_REDIRECT = LOGIN_URL + '?next=' + FOLLOW_INDEX_URL
-FOLLOW_REDIRECT = LOGIN_URL + '?next=' + FOLLOW_URL
-UNFOLLOW_REDIRECT = LOGIN_URL + '?next=' + UNFOLLOW_URL
+POST_CREATE_REDIRECT = f'{LOGIN_URL}?next={POST_CREATE_URL}'
+FOLLOW_INDEX_REDIRECT = f'{LOGIN_URL}?next={FOLLOW_INDEX_URL}'
+FOLLOW_REDIRECT = f'{LOGIN_URL}?next={FOLLOW_URL}'
+UNFOLLOW_REDIRECT = f'{LOGIN_URL}?next={UNFOLLOW_URL}'
 
 
 class PostURLTests(TestCase):
@@ -52,7 +52,7 @@ class PostURLTests(TestCase):
             'posts:post_detail', args=(NOT_EXIST_SLUG,)
         )
         cls.POST_EDIT_URL = reverse('posts:post_edit', args=(cls.post.id,))
-        cls.POST_EDIT_REDIRECT = LOGIN_URL + '?next=' + cls.POST_EDIT_URL
+        cls.POST_EDIT_REDIRECT = f'{LOGIN_URL}?next={cls.POST_EDIT_URL}'
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -84,13 +84,14 @@ class PostURLTests(TestCase):
             (self.guest, UNFOLLOW_URL, UNFOLLOW_REDIRECT,),
             (self.author_client, FOLLOW_URL, PROFILE_URL,),
             (self.user_client, FOLLOW_URL, PROFILE_URL,),
+            (self.user_client, UNFOLLOW_URL, PROFILE_URL,),
         )
-        for client, address, redirect in url_redirects_list:
+        for client, url, redirect in url_redirects_list:
             with self.subTest(
-                address=address, client=client, redirect=redirect
+                url=url, client=client, redirect=redirect
             ):
                 self.assertRedirects(
-                    client.get(address, follow=True), (redirect)
+                    client.get(url, follow=True), (redirect)
                 )
 
     def test_pages_HTTP_status(self):
@@ -116,7 +117,6 @@ class PostURLTests(TestCase):
             (UNFOLLOW_URL, self.user_client, FOUND),
             (UNFOLLOW_URL, self.guest, FOUND),
             (UNFOLLOW_URL, self.author_client, NOT_FOUND),
-            (FOLLOW_INDEX_URL, self.author_client, OK),
             (FOLLOW_INDEX_URL, self.guest, FOUND),
             (FOLLOW_INDEX_URL, self.user_client, OK),
         )

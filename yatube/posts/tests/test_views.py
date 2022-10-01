@@ -98,9 +98,8 @@ class PostPagesTests(TestCase):
                 self.assertEqual(post.text, self.post.text)
                 self.assertEqual(post.image, self.post.image)
                 self.assertEqual(post.id, self.post.id)
-                self.assertEqual(
-                    post.author.get_full_name, self.post.author.get_full_name
-                )
+                self.assertEqual(post.author, self.post.author)
+                self.assertEqual(post.group, self.post.group)
 
     def test_profile_page_show_correct_context(self):
         '''Шаблон страницы profile сформирован с правильным контекстом'''
@@ -143,8 +142,8 @@ class PostPagesTests(TestCase):
             response.content
         )
 
-    def test_only_authorized_user_can_subscribe(self):
-        '''Только авторизованный пользователь может подписаться'''
+    def test_authorized_user_can_subscribe(self):
+        '''Авторизованный пользователь может подписаться'''
         Follow.objects.all().delete()
         self.user_client.get(
             PROFILE_FOLLOW,
@@ -154,8 +153,8 @@ class PostPagesTests(TestCase):
             Follow.objects.filter(user=self.user, author=self.author).exists()
         )
 
-    def test_only_authorized_user_can_unsubscribe(self):
-        '''Только авторизованный пользователь может удалять из подписок'''
+    def test_authorized_user_can_unsubscribe(self):
+        '''Авторизованный пользователь может отписаться'''
         self.user_client.get(
             PROFILE_UNFOLLOW,
             follow=True,

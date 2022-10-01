@@ -24,7 +24,7 @@
       {% endif %} 
     {% endif %}  
     {% for post in page_obj %}
-      {% include 'includes/post.html' with author=True %}
+      {% include 'includes/post.html' with hide_author=True %}
       {% if not forloop.last %} <hr> {% endif %}
     {% endfor %}
     {% include 'includes/paginator.html' %}  

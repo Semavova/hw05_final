@@ -31,18 +31,18 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    user = request.user
-    following = (
-        user.is_authenticated
-        and user != author
-        and Follow.objects.filter(user=user, author=author).exists()
-    )
     return render(
         request,
         'posts/profile.html', {
             'author': author,
             'page_obj': page_obj(author.posts.all(), request),
-            'following': following
+            'following': (
+                request.user.is_authenticated
+                and request.user != author
+                and Follow.objects.filter(
+                    user=request.user, author=author
+                ).exists()
+            )
         }
     )
 

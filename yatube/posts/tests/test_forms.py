@@ -166,10 +166,9 @@ class PostCreateFormTests(TestCase):
             Post.objects.all(), posts, transform=lambda x: x
         )
 
-    def test_anonymous_can_not_edit_post(self):
-        """Аноним не может создать или отредактировать пост"""
+    def test_not_author_can_not_edit_post(self):
+        """Не-автор не может создать или отредактировать пост"""
         posts = Post.objects.all()
-        post = Post.objects.first()
         form_data = {
             'text': 'Новый пост',
             'group': self.group.id,
@@ -186,10 +185,12 @@ class PostCreateFormTests(TestCase):
                         self.POST_EDIT_URL, data=form_data, follow=True
                     ), url
                 )
+                post = self.post
                 self.assertEqual(self.post.text, post.text)
                 self.assertEqual(self.post.group.id, post.group.id)
                 self.assertEqual(self.post.author, post.author)
                 self.assertEqual(self.post.id, post.id)
+                self.assertEqual(self.post.image, post.image)
                 self.assertQuerysetEqual(
                     Post.objects.all(), posts, transform=lambda x: x
                 )

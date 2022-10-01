@@ -1,14 +1,14 @@
 {% load thumbnail %}
 <div class="container py-5">
   <ul>
-	  {% if not author %}
+    {% if not hide_author %}
       <li>
         Автор: 
         <a href="{% url 'posts:profile' post.author.username %}">
           {{ post.author.get_full_name }}
         </a>
       </li>
-		{% endif %}
+    {% endif %}
     <li>
       Дата публикации: {{ post.pub_date|date:"d E Y" }}
     </li>
@@ -20,11 +20,9 @@
     {{post.text|linebreaks}}
     <a href="{% url 'posts:post_detail' post.id %}">подробная информация</a>
   </p>
-  {% if not group_post %}    
-    {% if post.group %}   
-      <a href="{% url "posts:group_posts" post.group.slug %}">
-        #{{post.group}}
-      </a>
-	  {% endif %}
+  {% if post.group and not hide_group %}      
+    <a href="{% url "posts:group_posts" post.group.slug %}">
+      #{{post.group}}
+    </a>
   {% endif %}
 </div>

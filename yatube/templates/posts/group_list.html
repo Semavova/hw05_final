@@ -11,7 +11,7 @@
     </p>
   </div>
   {% for post in page_obj %}
-    {% include 'includes/post.html' with group_post=True %}
+    {% include 'includes/post.html' with hide_group=True %}
     {% if not forloop.last %} <hr> {% endif %}
   {% endfor %} 
   {% include 'includes/paginator.html' %}
