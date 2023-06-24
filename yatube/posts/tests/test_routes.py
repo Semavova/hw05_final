@@ -27,5 +27,5 @@ class PostPagesTests(TestCase):
         for url, address, args in CASES:
             with self.subTest(url=url):
                 self.assertEqual(
-                    reverse(f'{app_name}:' + address, args=args), url
+                    reverse(f'{app_name}:{address}', args=args), url
                 )

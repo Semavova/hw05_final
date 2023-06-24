@@ -185,7 +185,7 @@ class PostCreateFormTests(TestCase):
                         self.POST_EDIT_URL, data=form_data, follow=True
                     ), url
                 )
-                post = self.post
+                post = Post.objects.get(id=self.post.id)
                 self.assertEqual(self.post.text, post.text)
                 self.assertEqual(self.post.group.id, post.group.id)
                 self.assertEqual(self.post.author, post.author)
